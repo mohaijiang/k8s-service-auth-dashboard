@@ -1,10 +1,11 @@
 "use client";
 
 import { useSidebar } from "@/context/SidebarContext";
+import { useAuth } from "@/context/AuthContext";
 import AppHeader from "@/layout/AppHeader";
 import AppSidebar from "@/layout/AppSidebar";
 import Backdrop from "@/layout/Backdrop";
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 export default function AdminLayout({
   children,
@@ -12,6 +13,22 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
+  const { isAuthenticated } = useAuth();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && !isAuthenticated) {
+      window.location.href = "/signin";
+    }
+  }, [mounted, isAuthenticated]);
+
+  if (!mounted || !isAuthenticated) {
+    return null;
+  }
 
   // Dynamic class for main content margin based on sidebar state
   const mainContentMargin = isMobileOpen
