@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**K8s Service Auth Dashboard** — a web frontend for managing Kubernetes cluster networking and authentication. Built on Next.js 16, React 19, TypeScript, and Tailwind CSS v4, using the TailAdmin template as the UI shell.
+**K8s Service Auth Dashboard** — a full-stack application for managing Kubernetes cluster networking and authentication. The project uses a frontend/backend separation architecture.
 
 ### Core Purpose
 
@@ -14,39 +14,100 @@ This dashboard provides a management interface for:
 2. **HTTPRoute Management** — Create and edit HTTPRoute CRDs (Kubernetes Gateway API) that route external traffic to Services, including host/path rules and backend references.
 3. **Security Policies** — Manage security policy CRDs attached to Services for domain-level authentication and encryption (TLS/mTLS).
 4. **Domain & Auth Configuration** — Configure custom domains, TLS certificates, and encrypted login (e.g., basic-auth, OAuth proxy) for each Service's HTTPRoute.
+5. **Basic-Auth (.htpasswd) Management** — Per-namespace .htpasswd credential management for Envoy Gateway SecurityPolicies.
 
 ### Architecture Pattern
 
-Frontend (this repo) communicates with a backend API that interacts with the Kubernetes cluster. The backend is responsible for CRUD operations on Service, HTTPRoute, and SecurityPolicy CRDs via the Kubernetes API server.
+Monorepo with separated frontend and backend:
 
-- **Frontend**: Next.js App Router, React components, Tailwind CSS
-- **Backend API**: TBD — will be a Go operator, Python FastAPI, or Next.js API routes with `@kubernetes/client-node`
-- **Kubernetes Resources**: Service, HTTPRoute (Gateway API), SecurityPolicy (custom or standard CRD)
+```
+k8s-service-auth-dashboard/
+├── frontend/          # Next.js 16 + React 19 + TypeScript + Tailwind CSS v4
+├── backend/           # Go (Golang) backend service
+├── CLAUDE.md
+└── .gitignore
+```
+
+- **Frontend** (`frontend/`): Next.js App Router, React components, Tailwind CSS. Communicates with backend API via HTTP.
+- **Backend** (`backend/`): Go service using `client-go` to interact with the Kubernetes API server. Responsible for all CRUD operations on K8s resources (Secrets, ConfigMaps, HTTPRoutes, SecurityPolicies, Services).
+- **Kubernetes Resources**: Service, HTTPRoute (Gateway API), SecurityPolicy (Envoy Gateway CRD)
+
+### Architecture Flow
+
+```
+Browser → Frontend (Next.js) → Backend API (Go) → Kubernetes API
+                                                     ├── Secret (user accounts, JWT key, .htpasswd)
+                                                     ├── ConfigMap (dashboard config)
+                                                     ├── HTTPRoute CRD (Gateway API)
+                                                     ├── SecurityPolicy CRD (Envoy Gateway)
+                                                     └── Service (read-only)
+```
+
+### Key Design Decisions
+
+1. **No database** — All data stored as K8s resources (Secrets, ConfigMaps, CRDs), following Helm's pattern.
+2. **Backend**: Go service with `client-go`, not Next.js API Routes. Chosen for better K8s ecosystem integration and type-safe K8s API access.
+3. **Authentication**: Stateless JWT signed by key stored in K8s Secret. No session storage.
+4. **Authorization**: All dashboard users share admin permissions. No per-user RBAC.
+5. **Concurrency**: Optimistic locking via K8s `resourceVersion`. On 409 Conflict, return current state to frontend.
+6. **Namespace**: Dashboard-owned resources live in `dashboard-auth-system` namespace.
+7. **Dual-mode K8s credential loading**: Backend supports both local dev (`~/.kube/config`) and in-cluster (ServiceAccount token).
 
 ### Kubernetes Resource Model
 
 | Resource | Purpose | Key Fields |
 |----------|---------|------------|
 | Service | Cluster-internal service endpoint | name, namespace, clusterIP, ports, selector |
-| HTTPRoute | Gateway API routing rule | hostnames, rules (matches, backends), parentRefs |
-| SecurityPolicy | Auth/encryption policy for a route | TLS config, auth type (basic/OIDC/mTLS), credentials ref |
+| HTTPRoute | Gateway API routing rule (`gateway.networking.k8s.io/v1`) | hostnames, rules (matches, backends), parentRefs |
+| SecurityPolicy | Envoy Gateway auth policy (`gateway.envoyproxy.io/v1alpha1`) | targetRefs, basicAuth, TLS config |
 
-## Commands
+### Association Chain
+
+```
+Gateway (parentRefs.name)
+  └── HTTPRoute (spec.hostnames, spec.rules)
+        ├── backendRefs[].name → Service
+        └── SecurityPolicy (targetRefs.name matches HTTPRoute name)
+              └── basicAuth.users.name → Secret (.htpasswd)
+```
+
+## Requirements
+
+### REQ-1: User Management with Admin-Only Roles
+
+- Environment variable initialization (`INIT_ADMIN_USERNAME`, `INIT_ADMIN_PASSWORD`)
+- Web UI for user CRUD (create, list, delete)
+- Passwords stored as bcrypt hash in K8s Secret (`dashboard-user-<username>`)
+- Stateless JWT auth (signed by K8s Secret key)
+- All users share admin permissions
+
+### REQ-2: Service Overview with HTTPRoute and SecurityPolicy Status
+
+- Cross-namespace Service list with HTTPRoute and SecurityPolicy status indicators
+- Association matching: Service → HTTPRoute → SecurityPolicy
+- Namespace filtering
+
+### REQ-3: Basic-Auth (.htpasswd) Management per Namespace
+
+- Per-namespace .htpasswd Secret management (SHA1 format for Envoy Gateway)
+- CRUD for Secrets and individual user entries
+- Association view showing which SecurityPolicies reference each Secret
+
+## Frontend (`frontend/`)
+
+### Commands
 
 ```bash
+cd frontend
 npm run dev       # Start dev server
 npm run build     # Production build
 npm run lint      # ESLint check
 npm run start     # Start production server
 ```
 
-No test framework is configured.
-
-## Architecture
-
 ### Path Alias
 
-`@/*` maps to `./src/*` (configured in tsconfig.json).
+`@/*` maps to `./src/*` (configured in `frontend/tsconfig.json`).
 
 ### Route Groups
 
@@ -58,46 +119,47 @@ The app uses Next.js App Router with two route groups:
 ### Layouts
 
 - **Root layout** (`src/app/layout.tsx`): Wraps everything in `ThemeProvider` then `SidebarProvider`. Uses the "Outfit" font.
-- **Admin layout** (`src/app/(admin)/layout.tsx`): Client component that renders `AppSidebar`, `Backdrop`, and `AppHeader` around page content. Sidebar state controls main content margin.
+- **Admin layout** (`src/app/(admin)/layout.tsx`): Client component that renders `AppSidebar`, `Backdrop`, and `AppHeader` around page content.
 - **Full-width layout** (`src/app/(full-width-pages)/layout.tsx`): Minimal passthrough wrapper.
 
 ### State Management
 
 Two React Context providers (both client components):
 
-- `src/context/ThemeContext.tsx` — Light/dark theme toggle, persisted to localStorage, toggles `.dark` class on `<html>`.
-- `src/context/SidebarContext.tsx` — Sidebar expand/collapse, mobile drawer, hover state, active nav item, and submenu toggling.
+- `src/context/ThemeContext.tsx` — Light/dark theme toggle, persisted to localStorage.
+- `src/context/SidebarContext.tsx` — Sidebar expand/collapse, mobile drawer, hover state, active nav item.
 
 ### Component Organization
 
 `src/components/` groups by feature: `auth`, `calendar`, `charts`, `ecommerce`, `header`, `tables`, `ui`, `form`, `user-profile`, `videos`, `common`, `example`.
 
-Template components should be replaced or adapted as the K8s dashboard features are built. Key feature areas to develop:
+`src/layout/` contains: `AppHeader.tsx`, `AppSidebar.tsx`, `Backdrop.tsx`.
 
-- **Service list & detail** — Table and detail views for Kubernetes Services
-- **HTTPRoute editor** — Form/table for creating and editing HTTPRoute rules
-- **SecurityPolicy editor** — Form for TLS, auth type, and credential configuration
-- **Domain management** — Domain assignment and certificate status per Service
-
-`src/layout/` contains the three layout-level components: `AppHeader.tsx`, `AppSidebar.tsx`, `Backdrop.tsx`. The sidebar nav items in `AppSidebar.tsx` should be updated to reflect K8s dashboard routes.
-
-`src/hooks/` has `useGoBack` and `useModal`. Add cluster data fetching hooks here.
+`src/hooks/` has `useGoBack` and `useModal`.
 
 ### Styling
 
-Tailwind CSS v4 with custom theme tokens defined in `src/app/globals.css` using `@theme` directive. Color palette uses semantic names: `brand-*`, `gray-*`, `success-*`, `error-*`, `warning-*`, `blue-light-*`. Dark mode uses the `dark` variant (`@custom-variant dark (&:is(.dark *))`).
-
-SVGs are loaded via `@svgr/webpack` and exported from `src/icons/index.tsx` as React components.
+Tailwind CSS v4 with custom theme tokens in `src/app/globals.css` using `@theme` directive. Dark mode via `.dark` class.
 
 ### Key Libraries
 
-- **Charts**: ApexCharts via `react-apexcharts` — useful for service health/status dashboards
-- **Tables**: Existing table components should be adapted for listing K8s resources
-- **Forms**: Existing form components for HTTPRoute and SecurityPolicy editing
-- **Date picker**: flatpickr (direct, not react-flatpickr)
+- **Charts**: ApexCharts via `react-apexcharts`
+- **Date picker**: flatpickr
 
 Template-only libraries (jVectormap, FullCalendar, Swiper) can be removed when no longer needed.
 
-### ESLint
+## Backend (`backend/`)
 
-Configuration in `eslint.config.mjs` uses `eslint-config-next` with core-web-vitals and TypeScript presets. Ignores `.next/`, `out/`, `build/`, `next-env.d.ts`.
+Go backend service (to be implemented). Will use:
+- `client-go` for Kubernetes API access
+- Standard Go net/http or Gin/Echo framework (TBD)
+- JWT middleware for authentication
+
+### Commands (planned)
+
+```bash
+cd backend
+go mod tidy
+go run ./cmd/server
+go test ./...
+```
