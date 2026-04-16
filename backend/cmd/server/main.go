@@ -56,7 +56,7 @@ func main() {
 
 	public := router.Group("/api")
 	{
-		public.POST("/auth/login", authHandler.Login)
+		public.POST("/auth/login", auth.RateLimitMiddleware(1, 5), authHandler.Login)
 	}
 
 	protected := router.Group("/api")

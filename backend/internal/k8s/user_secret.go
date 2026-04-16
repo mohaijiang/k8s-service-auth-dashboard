@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -118,6 +119,7 @@ func parseUserSecret(secret *corev1.Secret) (*UserSecretData, error) {
 	createdAtStr := string(secret.Data["createdAt"])
 	createdAt, err := time.Parse(time.RFC3339, createdAtStr)
 	if err != nil {
+		log.Printf("Warning: failed to parse createdAt %q for secret %s: %v", createdAtStr, secret.Name, err)
 		createdAt = time.Now()
 	}
 

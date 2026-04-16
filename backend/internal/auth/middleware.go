@@ -42,5 +42,6 @@ func GetUsername(c *gin.Context) (string, bool) {
 	if !exists {
 		return "", false
 	}
-	return username.(string), true
+	s, ok := username.(string)
+	return s, ok
 }

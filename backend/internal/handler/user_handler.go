@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mohaijiang/k8s-service-auth-dashboard/backend/internal/auth"
@@ -66,6 +65,11 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
+	if len(req.Password) > 128 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "password must be at most 128 characters"})
+		return
+	}
+
 	passwordHash, err := auth.HashPassword(req.Password)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
@@ -77,11 +81,22 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
+	userSecret, err := k8s.GetUserSecret(c.Request.Context(), h.clientset, h.namespace, req.Username)
+	if err != nil {
+		c.JSON(http.StatusCreated, gin.H{
+			"success": true,
+			"data": model.User{
+				Username: req.Username,
+			},
+		})
+		return
+	}
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"data": model.User{
 			Username:  req.Username,
-			CreatedAt: time.Now(),
+			CreatedAt: userSecret.CreatedAt,
 		},
 	})
 }
