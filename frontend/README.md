@@ -1,200 +1,144 @@
-# TailAdmin Next.js - Free Next.js Tailwind Admin Dashboard Template
+# Frontend — K8s Service Auth Dashboard
 
-TailAdmin is a free and open-source admin dashboard template built on **Next.js and Tailwind CSS** providing developers with everything they need to create a feature-rich and data-driven: back-end, dashboard, or admin panel solution for any sort of web project.
+Next.js admin dashboard for managing Kubernetes service networking and authentication.
 
-![TailAdmin - Next.js Dashboard Preview](./banner.png)
+## Tech Stack
 
-With TailAdmin Next.js, you get access to all the necessary dashboard UI components, elements, and pages required to build a high-quality and complete dashboard or admin panel. Whether you're building a dashboard or admin panel for a complex web application or a simple website.
+- **Next.js 16** (App Router) + **React 19** + **TypeScript**
+- **Tailwind CSS v4** for styling
+- **Vitest** + **@testing-library/react** for testing
 
-TailAdmin utilizes the powerful features of **Next.js 16** and common features of Next.js such as server-side rendering (SSR), static site generation (SSG), and seamless API route integration. Combined with the advancements of **React 19** and the robustness of **TypeScript**, TailAdmin is the perfect solution to help get your project up and running quickly.
+## Prerequisites
 
-## Overview
+- Node.js 18.x or later (recommended: 20.x+)
 
-TailAdmin provides essential UI components and layouts for building feature-rich, data-driven admin dashboards and control panels. It's built on:
-
-* Next.js 16.x
-* React 19
-* TypeScript
-* Tailwind CSS V4
-
-### Quick Links
-
-* [✨ Visit Website](https://tailadmin.com)
-* [📄 Documentation](https://tailadmin.com/docs)
-* [⬇️ Download](https://tailadmin.com/download)
-* [🖌️ Figma Design File (Community Edition)](https://www.figma.com/community/file/1463141366275764364)
-* [⚡ Get PRO Version](https://tailadmin.com/pricing)
-
-### Demos
-
-* [Free Version](https://nextjs-free-demo.tailadmin.com)
-* [Pro Version](https://nextjs-demo.tailadmin.com)
-
-### Other Versions
-
-- [Next.js Version](https://github.com/TailAdmin/free-nextjs-admin-dashboard)
-- [React.js Version](https://github.com/TailAdmin/free-react-tailwind-admin-dashboard)
-- [Vue.js Version](https://github.com/TailAdmin/vue-tailwind-admin-dashboard)
-- [Angular Version](https://github.com/TailAdmin/free-angular-tailwind-dashboard)
-- [Laravel Version](https://github.com/TailAdmin/tailadmin-laravel)
-
-## Installation
-
-### Prerequisites
-
-To get started with TailAdmin, ensure you have the following prerequisites installed and set up:
-
-* Node.js 18.x or later (recommended to use Node.js 20.x or later)
-
-### Cloning the Repository
-
-Clone the repository using the following command:
+## Quick Start
 
 ```bash
-git clone https://github.com/TailAdmin/free-nextjs-admin-dashboard.git
+# Install dependencies
+npm install
+
+# Start dev server (port 3001)
+npm run dev
+
+# Production build
+npm run build
+npm run start
 ```
 
-> Windows Users: place the repository near the root of your drive if you face issues while cloning.
+The frontend proxies `/api/*` requests to the backend at `http://localhost:8080` via Next.js rewrites.
 
-1. Install dependencies:
+## Running Tests
 
-   ```bash
-   npm install
-   # or
-   yarn install
-   ```
+```bash
+npx vitest run           # Run all tests
+npx vitest run --watch   # Watch mode
+```
 
-   > Use `--legacy-peer-deps` flag if you face peer-dependency error during installation.
+## Docker
 
-2. Start the development server:
+```bash
+docker build -t k8s-auth-dashboard-frontend .
+docker run -p 3000:3000 k8s-auth-dashboard-frontend
+```
 
-   ```bash
-   npm run dev
-   # or
-   yarn dev
-   ```
+## Project Structure
 
-## Components
+```
+src/
+├── app/
+│   ├── layout.tsx                     # Root layout (ThemeProvider + SidebarProvider)
+│   ├── globals.css                    # Tailwind v4 theme tokens
+│   ├── (admin)/                       # Admin pages (sidebar + header layout)
+│   │   ├── layout.tsx                 # Admin layout wrapper
+│   │   ├── page.tsx                   # Dashboard home
+│   │   ├── services/page.tsx          # Service overview (REQ-2)
+│   │   └── htpasswd/page.tsx          # Htpasswd management (REQ-3)
+│   └── (full-width-pages)/            # Auth pages (no sidebar)
+│       ├── signin/page.tsx
+│       ├── signup/page.tsx
+│       └── error-404/page.tsx
+├── components/
+│   ├── auth/                          # SignUpForm, auth-related components
+│   ├── common/                        # PageBreadcrumb, ComponentCard, ThemeToggler
+│   ├── tables/
+│   │   ├── ServiceTable.tsx           # K8s services table (REQ-2)
+│   │   ├── ServiceTable.test.tsx
+│   │   ├── HtpasswdTable.tsx          # Htpasswd secrets table (REQ-3)
+│   │   └── HtpasswdTable.test.tsx
+│   └── ui/                            # Button, Badge, Modal, Table, Alert, etc.
+├── context/
+│   ├── ThemeContext.tsx                # Light/dark theme toggle
+│   └── SidebarContext.tsx             # Sidebar state management
+├── hooks/
+│   ├── useModal.ts                    # Modal open/close state
+│   └── useGoBack.ts                   # Navigation helper
+├── layout/
+│   ├── AppSidebar.tsx                 # Main sidebar navigation
+│   ├── AppHeader.tsx                  # Top header bar
+│   └── Backdrop.tsx                   # Mobile sidebar backdrop
+└── lib/
+    ├── api.ts                         # API client + all types and functions
+    ├── api.test.ts                    # API function tests
+    └── auth.ts                        # JWT token storage (localStorage)
+```
 
-TailAdmin is a pre-designed starting point for building a web-based dashboard using Next.js and Tailwind CSS. The template includes:
+## Pages
 
-* Sophisticated and accessible sidebar
-* Data visualization components
-* Profile management and custom 404 page
-* Tables and Charts(Line and Bar)
-* Authentication forms and input elements
-* Alerts, Dropdowns, Modals, Buttons and more
-* Can't forget Dark Mode 🕶️
+| Path | Description |
+|------|-------------|
+| `/` | Dashboard home |
+| `/services` | K8s service overview with namespace filter and HTTPRoute/SecurityPolicy status badges |
+| `/htpasswd` | Htpasswd secret management per namespace with user CRUD and linked SecurityPolicy view |
+| `/signin` | Login page |
+| `/signup` | Registration page |
 
-All components are built with React and styled using Tailwind CSS for easy customization.
+## API Layer
 
-## Feature Comparison
+All backend communication goes through `src/lib/api.ts`, which provides:
 
-### Free Version
+### Auth
+- `login({ username, password })` — Authenticate and receive JWT
 
-* 1 Unique Dashboard
-* 30+ dashboard components
-* 50+ UI elements
-* Basic Figma design files
-* Community support
+### User Management
+- `listUsers()` — Get all dashboard users
+- `createUser({ username, password })` — Create new user
+- `deleteUser(username)` — Delete user
 
-### Pro Version
+### Services
+- `listServices(namespace?)` — List K8s services with HTTPRoute/SecurityPolicy status
+- `listNamespaces()` — List all K8s namespaces
 
-* 7 Unique Dashboards: Analytics, Ecommerce, Marketing, CRM, SaaS, Stocks, Logistics (more coming soon)
-* 500+ dashboard components and UI elements
-* Complete Figma design file
-* Email support
+### Htpasswd Management
+- `listHtpasswdSecrets(namespace)` — List htpasswd secrets in namespace
+- `getHtpasswdSecret(namespace, name)` — Get secret detail with linked policies
+- `createHtpasswdSecret(namespace, { name, users })` — Create secret
+- `addHtpasswdUser(namespace, name, { username, password })` — Add user
+- `removeHtpasswdUser(namespace, name, username)` — Remove user
+- `deleteHtpasswdSecret(namespace, name)` — Delete secret
 
-To learn more about pro version features and pricing, visit our [pricing page](https://tailadmin.com/pricing).
+### API Client
 
-## Changelog
+All functions use the shared `apiClient<T>(path, options)` helper which:
+- Adds `Authorization: Bearer <token>` header from localStorage
+- Sets `Content-Type: application/json`
+- Throws on non-ok responses with the error message from the backend
 
-### Version 2.2.3 - [March 15, 2026]
+## Path Alias
 
-* update ESLint configuration and dependencies; upgrade Next.js to version 16.1.6
+`@/*` maps to `./src/*` — configured in `tsconfig.json`.
 
-### Version 2.2.2 - [December 30, 2025]
+## Styling
 
-* Fixed date picker positioning and functionality in Statistics Chart.
+- Tailwind CSS v4 with custom theme tokens defined in `globals.css` via `@theme` directive
+- Dark mode via `.dark` class (toggled by ThemeContext)
+- Custom UI components in `src/components/ui/` (Button, Badge, Modal, Table)
 
+## Key Patterns
 
-### Version 2.1.0 - [November 15, 2025]
-
-* Updated to Next.js 16.x
-* Fixed all reported minor bugs
-
-### Version 2.0.2 - [March 25, 2025]
-
-* Upgraded to Next.js 16.x for [CVE-2025-29927](https://nextjs.org/blog/cve-2025-29927) concerns
-* Included overrides vectormap for packages to prevent peer dependency errors during installation.
-* Migrated from react-flatpickr to flatpickr package for React 19 support
-
-### Version 2.0.1 - [February 27, 2025]
-
-#### Update Overview
-
-* Upgraded to Tailwind CSS v4 for better performance and efficiency.
-* Updated class usage to match the latest syntax and features.
-* Replaced deprecated class and optimized styles.
-
-#### Next Steps
-
-* Run npm install or yarn install to update dependencies.
-* Check for any style changes or compatibility issues.
-* Refer to the Tailwind CSS v4 [Migration Guide](https://tailwindcss.com/docs/upgrade-guide) on this release. if needed.
-* This update keeps the project up to date with the latest Tailwind improvements. 🚀
-
-### v2.0.0 (February 2025)
-
-A major update focused on Next.js 16 implementation and comprehensive redesign.
-
-#### Major Improvements
-
-* Complete redesign using Next.js 16 App Router and React Server Components
-* Enhanced user interface with Next.js-optimized components
-* Improved responsiveness and accessibility
-* New features including collapsible sidebar, chat screens, and calendar
-* Redesigned authentication using Next.js App Router and server actions
-* Updated data visualization using ApexCharts for React
-
-#### Breaking Changes
-
-* Migrated from Next.js 14 to Next.js 16
-* Chart components now use ApexCharts for React
-* Authentication flow updated to use Server Actions and middleware
-
-[Read more](https://tailadmin.com/docs/update-logs/nextjs) on this release.
-
-### v1.3.4 (July 01, 2024)
-
-* Fixed JSvectormap rendering issues
-
-### v1.3.3 (June 20, 2024)
-
-* Fixed build error related to Loader component
-
-### v1.3.2 (June 19, 2024)
-
-* Added ClickOutside component for dropdown menus
-* Refactored sidebar components
-* Updated Jsvectormap package
-
-### v1.3.1 (Feb 12, 2024)
-
-* Fixed layout naming consistency
-* Updated styles
-
-### v1.3.0 (Feb 05, 2024)
-
-* Upgraded to Next.js 14
-* Added Flatpickr integration
-* Improved form elements
-* Enhanced multiselect functionality
-* Added default layout component
-
-## License
-
-TailAdmin Next.js Free Version is released under the MIT License.
-
-## Support
-If you find this project helpful, please consider giving it a star on GitHub. Your support helps us continue developing and maintaining this template.
+- **Page components**: Client components (`"use client"`) using `useState` + `useEffect` for data fetching
+- **Namespace filtering**: Dropdown populated by `listNamespaces()`, triggers re-fetch on change
+- **Modals**: Using `<Modal>` component + `useModal` hook for create/delete dialogs
+- **Tables**: Custom `HtpasswdTable`/`ServiceTable` components using shared `Table` UI primitives
+- **Error display**: Red alert boxes for both fetch errors and action errors
+- **Null safety**: API response arrays use `?? []` fallback for nullable fields

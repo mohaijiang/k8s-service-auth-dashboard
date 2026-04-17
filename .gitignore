@@ -2,16 +2,17 @@
 
 # dependencies
 /.idea
-/node_modules
+node_modules
 /.pnp
 .pnp.js
 .yarn/install-state.gz
 
 # testing
 /coverage
+*.out
 
 # next.js
-/.next/
+.next/
 /out/
 
 # production
