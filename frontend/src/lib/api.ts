@@ -134,3 +134,102 @@ export function listServices(namespace?: string): Promise<ListServicesResponse> 
 export function listNamespaces(): Promise<ListNamespacesResponse> {
   return apiClient<ListNamespacesResponse>("/api/namespaces");
 }
+
+// htpasswd types
+
+export interface HtpasswdSecretSummary {
+  name: string;
+  namespace: string;
+  userCount: number;
+  createdAt: string;
+}
+
+export interface PolicyTargetRef {
+  name: string;
+  kind: string;
+}
+
+export interface LinkedSecurityPolicy {
+  name: string;
+  namespace: string;
+  targetRef: PolicyTargetRef;
+}
+
+export interface HtpasswdUserEntry {
+  username: string;
+}
+
+export interface HtpasswdSecretDetail {
+  name: string;
+  namespace: string;
+  users: HtpasswdUserEntry[];
+  userCount: number;
+  createdAt: string;
+  linkedSecurityPolicies: LinkedSecurityPolicy[];
+}
+
+export interface ListHtpasswdSecretsResponse {
+  success: boolean;
+  data: HtpasswdSecretSummary[];
+}
+
+export interface GetHtpasswdSecretResponse {
+  success: boolean;
+  data: HtpasswdSecretDetail;
+}
+
+export interface CreateHtpasswdSecretResponse {
+  success: boolean;
+  data: { name: string; namespace: string; userCount: number };
+}
+
+export interface HtpasswdMessageResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface CreateHtpasswdRequest {
+  name: string;
+  users: { username: string; password: string }[];
+}
+
+export interface AddHtpasswdUserRequest {
+  username: string;
+  password: string;
+}
+
+// htpasswd API functions
+
+export function listHtpasswdSecrets(namespace: string): Promise<ListHtpasswdSecretsResponse> {
+  return apiClient<ListHtpasswdSecretsResponse>(`/api/namespaces/${namespace}/htpasswd`);
+}
+
+export function getHtpasswdSecret(namespace: string, name: string): Promise<GetHtpasswdSecretResponse> {
+  return apiClient<GetHtpasswdSecretResponse>(`/api/namespaces/${namespace}/htpasswd/${name}`);
+}
+
+export function createHtpasswdSecret(namespace: string, data: CreateHtpasswdRequest): Promise<CreateHtpasswdSecretResponse> {
+  return apiClient<CreateHtpasswdSecretResponse>(`/api/namespaces/${namespace}/htpasswd`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function addHtpasswdUser(namespace: string, name: string, data: AddHtpasswdUserRequest): Promise<HtpasswdMessageResponse> {
+  return apiClient<HtpasswdMessageResponse>(`/api/namespaces/${namespace}/htpasswd/${name}/users`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function removeHtpasswdUser(namespace: string, name: string, username: string): Promise<HtpasswdMessageResponse> {
+  return apiClient<HtpasswdMessageResponse>(`/api/namespaces/${namespace}/htpasswd/${name}/users/${username}`, {
+    method: "DELETE",
+  });
+}
+
+export function deleteHtpasswdSecret(namespace: string, name: string): Promise<HtpasswdMessageResponse> {
+  return apiClient<HtpasswdMessageResponse>(`/api/namespaces/${namespace}/htpasswd/${name}`, {
+    method: "DELETE",
+  });
+}

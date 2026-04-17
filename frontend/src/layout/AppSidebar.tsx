@@ -38,6 +38,11 @@ const navItems: NavItem[] = [
     path: "/services",
   },
   {
+    icon: <PlugInIcon />,
+    name: "Htpasswd",
+    path: "/htpasswd",
+  },
+  {
     icon: <CalenderIcon />,
     name: "Calendar",
     path: "/calendar",
