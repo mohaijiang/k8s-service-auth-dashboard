@@ -30,6 +30,12 @@ func main() {
 	}
 	log.Println("Connected to Kubernetes")
 
+	dynClient, err := k8s.NewDynamicClient()
+	if err != nil {
+		log.Fatalf("Failed to create Kubernetes dynamic client: %v", err)
+	}
+	log.Println("Dynamic client initialized")
+
 	jwtSecret, err := k8s.GetJWTKey(context.Background(), clientset, cfg.Namespace)
 	if err != nil {
 		log.Fatalf("Failed to get JWT secret: %v", err)
@@ -53,6 +59,8 @@ func main() {
 
 	authHandler := handler.NewAuthHandler(clientset, cfg.Namespace, jwtSecret, cfg.JWTExpiry)
 	userHandler := handler.NewUserHandler(clientset, cfg.Namespace)
+	serviceHandler := handler.NewServiceHandler(clientset, dynClient)
+	htpasswdHandler := handler.NewHtpasswdHandler(clientset, dynClient)
 
 	public := router.Group("/api")
 	{
@@ -65,6 +73,16 @@ func main() {
 		protected.GET("/users", userHandler.ListUsers)
 		protected.POST("/users", userHandler.CreateUser)
 		protected.DELETE("/users/:username", userHandler.DeleteUser)
+
+		protected.GET("/services", serviceHandler.ListServices)
+		protected.GET("/namespaces", serviceHandler.ListNamespaces)
+
+		protected.GET("/namespaces/:namespace/htpasswd", htpasswdHandler.ListHtpasswdSecrets)
+		protected.GET("/namespaces/:namespace/htpasswd/:name", htpasswdHandler.GetHtpasswdSecret)
+		protected.POST("/namespaces/:namespace/htpasswd", htpasswdHandler.CreateHtpasswdSecret)
+		protected.POST("/namespaces/:namespace/htpasswd/:name/users", htpasswdHandler.AddUser)
+		protected.DELETE("/namespaces/:namespace/htpasswd/:name/users/:username", htpasswdHandler.RemoveUser)
+		protected.DELETE("/namespaces/:namespace/htpasswd/:name", htpasswdHandler.DeleteHtpasswdSecret)
 	}
 
 	router.GET("/health", func(c *gin.Context) {

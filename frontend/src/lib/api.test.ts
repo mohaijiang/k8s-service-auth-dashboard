@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { apiClient, login, createUser, listUsers, deleteUser } from "./api";
+import { apiClient, login, createUser, listUsers, deleteUser, listServices, listNamespaces } from "./api";
 
 describe("apiClient", () => {
   beforeEach(() => {
@@ -140,5 +140,117 @@ describe("deleteUser", () => {
       expect.objectContaining({ method: "DELETE" })
     );
     expect(result.success).toBe(true);
+  });
+});
+
+describe("listServices", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it("calls GET /api/services without namespace", async () => {
+    localStorage.setItem("auth_token", "test-jwt");
+    const mockData = {
+      success: true,
+      data: [
+        {
+          name: "my-app",
+          namespace: "default",
+          clusterIP: "10.0.0.1",
+          ports: [{ name: "http", port: 80, targetPort: "8080", protocol: "TCP" }],
+          selector: { app: "my-app" },
+          httpRoute: null,
+          securityPolicy: null,
+        },
+      ],
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockData),
+    } as Response);
+
+    const result = await listServices();
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "/api/services",
+      expect.any(Object)
+    );
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].name).toBe("my-app");
+    expect(result.data[0].httpRoute).toBeNull();
+  });
+
+  it("calls GET /api/services with namespace query param", async () => {
+    localStorage.setItem("auth_token", "test-jwt");
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ success: true, data: [] }),
+    } as Response);
+
+    await listServices("production");
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "/api/services?namespace=production",
+      expect.any(Object)
+    );
+  });
+
+  it("parses service with HTTPRoute and SecurityPolicy", async () => {
+    localStorage.setItem("auth_token", "test-jwt");
+    const mockData = {
+      success: true,
+      data: [
+        {
+          name: "my-app",
+          namespace: "prod",
+          clusterIP: "10.0.0.1",
+          ports: [],
+          selector: {},
+          httpRoute: {
+            name: "my-app-route",
+            namespace: "prod",
+            hostnames: ["app.example.com"],
+            parentRefs: [{ name: "gateway", namespace: "gw" }],
+          },
+          securityPolicy: {
+            name: "my-app-auth",
+            namespace: "prod",
+            hasBasicAuth: true,
+            hasTLS: false,
+          },
+        },
+      ],
+    };
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(mockData),
+    } as Response);
+
+    const result = await listServices();
+    expect(result.data[0].httpRoute?.name).toBe("my-app-route");
+    expect(result.data[0].httpRoute?.hostnames).toContain("app.example.com");
+    expect(result.data[0].securityPolicy?.hasBasicAuth).toBe(true);
+    expect(result.data[0].securityPolicy?.hasTLS).toBe(false);
+  });
+});
+
+describe("listNamespaces", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it("calls GET /api/namespaces and returns string array", async () => {
+    localStorage.setItem("auth_token", "test-jwt");
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ success: true, data: ["default", "kube-system", "production"] }),
+    } as Response);
+
+    const result = await listNamespaces();
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "/api/namespaces",
+      expect.any(Object)
+    );
+    expect(result.data).toEqual(["default", "kube-system", "production"]);
   });
 });

@@ -27,6 +27,52 @@ export interface DeleteUserResponse {
   message: string;
 }
 
+export interface ServicePort {
+  name: string;
+  port: number;
+  targetPort: string;
+  protocol: string;
+}
+
+export interface ParentRef {
+  name: string;
+  namespace: string;
+}
+
+export interface HTTPRouteInfo {
+  name: string;
+  namespace: string;
+  hostnames: string[];
+  parentRefs: ParentRef[];
+}
+
+export interface SecurityPolicyInfo {
+  name: string;
+  namespace: string;
+  hasBasicAuth: boolean;
+  hasTLS: boolean;
+}
+
+export interface ServiceOverview {
+  name: string;
+  namespace: string;
+  clusterIP: string;
+  ports: ServicePort[];
+  selector: Record<string, string>;
+  httpRoute: HTTPRouteInfo | null;
+  securityPolicy: SecurityPolicyInfo | null;
+}
+
+export interface ListServicesResponse {
+  success: boolean;
+  data: ServiceOverview[];
+}
+
+export interface ListNamespacesResponse {
+  success: boolean;
+  data: string[];
+}
+
 export async function apiClient<T = unknown>(
   path: string,
   options: RequestInit = {}
@@ -78,4 +124,13 @@ export function deleteUser(username: string): Promise<DeleteUserResponse> {
   return apiClient<DeleteUserResponse>(`/api/users/${username}`, {
     method: "DELETE",
   });
+}
+
+export function listServices(namespace?: string): Promise<ListServicesResponse> {
+  const path = namespace ? `/api/services?namespace=${namespace}` : "/api/services";
+  return apiClient<ListServicesResponse>(path);
+}
+
+export function listNamespaces(): Promise<ListNamespacesResponse> {
+  return apiClient<ListNamespacesResponse>("/api/namespaces");
 }
