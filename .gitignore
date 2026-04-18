@@ -39,4 +39,5 @@ next-env.d.ts
 
 # go
 backend/server
+backend/main
 backend/__debug_bin*
