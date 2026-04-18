@@ -1,6 +1,7 @@
 {{- if .Values.frontend.ingress.enabled -}}
 {{- $fullName := include "k8s-service-auth-dashboard.fullname" . -}}
-{{- $svcPort := .Values.frontend.service.port -}}
+{{- $frontendPort := .Values.frontend.service.port -}}
+{{- $backendPort := .Values.backend.service.port -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -30,6 +31,15 @@ spec:
     - host: {{ .host | quote }}
       http:
         paths:
+          # Route /api/* to backend service directly (bypass Next.js rewrites)
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullName }}-backend
+                port:
+                  number: {{ $backendPort }}
+          # All other paths go to frontend
           {{- range .paths }}
           - path: {{ .path }}
             pathType: {{ .pathType }}
@@ -37,7 +47,7 @@ spec:
               service:
                 name: {{ $fullName }}-frontend
                 port:
-                  number: {{ $svcPort }}
+                  number: {{ $frontendPort }}
           {{- end }}
     {{- end }}
 {{- end }}

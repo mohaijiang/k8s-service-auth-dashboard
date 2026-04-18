@@ -3,8 +3,15 @@ FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
+# Use Chinese mirror for Alpine packages
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+
 # Install build dependencies
 RUN apk add --no-cache git
+
+# Set Go proxy for faster downloads in China
+ENV GOPROXY=https://goproxy.cn,https://goproxy.io,direct
+ENV GO111MODULE=on
 
 # Copy go mod files
 COPY go.mod go.sum ./
@@ -22,6 +29,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server ./cmd/serv
 FROM alpine:latest
 
 WORKDIR /app
+
+# Use Chinese mirror for Alpine packages
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 
 # Install ca-certificates for HTTPS calls
 RUN apk --no-cache add ca-certificates

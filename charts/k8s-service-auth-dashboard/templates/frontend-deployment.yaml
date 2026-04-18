@@ -28,8 +28,8 @@ spec:
           containerPort: {{ .Values.frontend.service.port }}
           protocol: TCP
         env:
-        - name: NEXT_PUBLIC_API_URL
-          value: {{ .Values.frontend.apiUrl | quote }}
+        - name: BACKEND_URL
+          value: {{ printf "http://%s-backend:%s" (include "k8s-service-auth-dashboard.fullname" .) (toString .Values.backend.service.port) | quote }}
         {{- with .Values.frontend.securityContext }}
         securityContext:
           {{- toYaml . | nindent 10 }}

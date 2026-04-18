@@ -78,12 +78,13 @@ frontend:
     pullPolicy: IfNotPresent
     tag: "latest"
 
-  # Backend API URL (will be auto-configured if using service)
-  apiUrl: "http://backend:8080"
+  # Backend URL is auto-configured via Helm template (uses backend service name)
+  # No need to set manually - the deployment template computes:
+  # http://<release-name>-k8s-service-auth-dashboard-backend:<port>
 
   # Service configuration
   service:
-    type: ClusterIP
+    type: NodePort
     port: 3000
 
   # Ingress configuration

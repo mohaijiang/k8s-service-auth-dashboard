@@ -2,6 +2,7 @@ version: "3.8"
 
 services:
   backend:
+    image: ghcr.io/mohaijiang/k8s-service-auth-dashboard/backend
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -14,11 +15,21 @@ services:
       - NAMESPACE=dashboard-auth-system
       - JWT_EXPIRY=24h
       - INIT_ADMIN_USERNAME=admin
-      - INIT_ADMIN_PASSWORD=admin123456
+      - INIT_ADMIN_PASSWORD=admin123
     # Mount kubeconfig for local development (comment out in production)
+    # Run as root in development to access kubeconfig (production uses ServiceAccount)
+    user: "0:0"
     volumes:
-      - ~/.kube/config:/root/.kube/config:ro
-    # For Kubernetes in-cluster testing, uncomment to use pod's service account
+      - ~/.kube/config:/tmp/kubeconfig:ro
+    command:
+      - /bin/sh
+      - -c
+      - |
+        mkdir -p /root/.kube && \
+        cp /tmp/kubeconfig /root/.kube/config && \
+        chmod 600 /root/.kube/config && \
+        exec ./server
+    # For Kubernetes in-cluster testing, remove user/volumes/command above and uncomment:
     # volumes:
     #   - /var/run/secrets/kubernetes.io/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount:ro
     restart: unless-stopped
@@ -32,6 +43,7 @@ services:
       start_period: 40s
 
   frontend:
+    image: ghcr.io/mohaijiang/k8s-service-auth-dashboard/frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -40,7 +52,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - BACKEND_URL=http://backend:8080
     restart: unless-stopped
     networks:
       - k8s-auth-dashboard

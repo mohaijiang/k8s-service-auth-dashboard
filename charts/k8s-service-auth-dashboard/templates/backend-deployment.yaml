@@ -49,11 +49,6 @@ spec:
               name: {{ include "k8s-service-auth-dashboard.fullname" . }}-admin-user
               key: password
         {{- end }}
-        - name: KUBERNETES_SERVICE_HOST
-          value: ""
-        # Mount the admin K8s token for API access
-        - name: KUBERNETES_SERVICE_PORT
-          value: ""
         volumeMounts:
         - name: admin-token
           mountPath: /var/run/secrets/kubernetes.io/serviceaccount
