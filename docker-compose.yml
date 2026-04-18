@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: k8s-service-auth-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - ENV=development
+      - NAMESPACE=dashboard-auth-system
+      - JWT_EXPIRY=24h
+      - INIT_ADMIN_USERNAME=admin
+      - INIT_ADMIN_PASSWORD=admin123456
+    # Mount kubeconfig for local development (comment out in production)
+    volumes:
+      - ~/.kube/config:/root/.kube/config:ro
+    # For Kubernetes in-cluster testing, uncomment to use pod's service account
+    # volumes:
+    #   - /var/run/secrets/kubernetes.io/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount:ro
+    restart: unless-stopped
+    networks:
+      - k8s-auth-dashboard
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: k8s-service-auth-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    restart: unless-stopped
+    networks:
+      - k8s-auth-dashboard
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  k8s-auth-dashboard:
+    driver: bridge
