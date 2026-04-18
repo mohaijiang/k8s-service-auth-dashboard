@@ -1,0 +1,85 @@
+{{- if .Values.backend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "k8s-service-auth-dashboard.fullname" . }}-backend
+  labels:
+    {{- include "k8s-service-auth-dashboard.backend.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "k8s-service-auth-dashboard.backend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "k8s-service-auth-dashboard.backend.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.backend.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "k8s-service-auth-dashboard.backend.serviceAccountName" . }}
+      containers:
+      - name: backend
+        image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.backend.env.port }}
+          protocol: TCP
+        env:
+        - name: PORT
+          value: "{{ .Values.backend.env.port }}"
+        - name: ENV
+          value: {{ .Values.backend.env.env | quote }}
+        - name: NAMESPACE
+          value: {{ .Values.backend.env.namespace | quote }}
+        - name: JWT_EXPIRY
+          value: {{ .Values.backend.env.jwtExpiry | quote }}
+        {{- if .Values.backend.adminUser.create }}
+        - name: INIT_ADMIN_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "k8s-service-auth-dashboard.fullname" . }}-admin-user
+              key: username
+        - name: INIT_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "k8s-service-auth-dashboard.fullname" . }}-admin-user
+              key: password
+        {{- end }}
+        - name: KUBERNETES_SERVICE_HOST
+          value: ""
+        # Mount the admin K8s token for API access
+        - name: KUBERNETES_SERVICE_PORT
+          value: ""
+        volumeMounts:
+        - name: admin-token
+          mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+          readOnly: true
+        {{- with .Values.backend.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.backend.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      volumes:
+      - name: admin-token
+        secret:
+          secretName: {{ .Values.serviceAccount.adminToken.secretName }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

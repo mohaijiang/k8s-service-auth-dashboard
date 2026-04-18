@@ -1,0 +1,158 @@
+# Default values for k8s-service-auth-dashboard
+
+# Backend configuration
+backend:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/mohaijiang/k8s-service-auth-dashboard/backend
+    pullPolicy: IfNotPresent
+    tag: "latest"
+
+  # Service account for the backend (will have admin token mounted)
+  serviceAccount:
+    create: true
+    name: ""
+    # Automount the service account token
+    automountToken: true
+
+  # Environment variables
+  env:
+    # Namespace where dashboard resources are stored
+    namespace: dashboard-auth-system
+    # JWT expiry duration
+    jwtExpiry: 24h
+    # Environment (development, production)
+    env: production
+    # Port
+    port: 8080
+
+  # Secret for initial admin user
+  adminUser:
+    # Set to true to create admin user on startup
+    create: true
+    username: admin
+    # If not set, a random password will be generated
+    password: ""
+    # Or use existing secret
+    existingSecret: ""
+    existingSecretUsernameKey: username
+    existingSecretPasswordKey: password
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 8080
+
+  # Resources
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  # Pod security context
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+
+  # Container security context
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+
+# Frontend configuration
+frontend:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/mohaijiang/k8s-service-auth-dashboard/frontend
+    pullPolicy: IfNotPresent
+    tag: "latest"
+
+  # Backend API URL (will be auto-configured if using service)
+  apiUrl: "http://backend:8080"
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 3000
+
+  # Ingress configuration
+  ingress:
+    enabled: false
+    className: "nginx"
+    annotations: {}
+      # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    hosts:
+      - host: dashboard.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+    #  - secretName: dashboard-tls
+    #    hosts:
+    #      - dashboard.local
+
+  # Resources
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+  # Pod security context
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+
+  # Container security context
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+
+# Service account and RBAC
+serviceAccount:
+  # Create admin token secret that will be mounted to backend pod
+  adminToken:
+    create: true
+    # Name of the secret that will store the admin token
+    secretName: admin-k8s-token
+
+# Cluster role binding for admin access
+clusterRole:
+  # Create a ClusterRole with full permissions to manage Gateway API resources
+  create: true
+  # The ClusterRole gives permissions for:
+  # - gateway.networking.k8s.io/v1 (HTTPRoute, Gateway, ReferenceGrant)
+  # - gateway.envoyproxy.io/v1alpha1 (SecurityPolicy)
+  # - core/v1 (Secret, Service, Namespace, ServiceAccount)
+  # - rbac.authorization.k8s.io/v1 (Role, RoleBinding)
+  name: admin
+
+# Image pull secrets
+imagePullSecrets: []
+#  - name: ghcr-login-secret
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}

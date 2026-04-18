@@ -1,0 +1,14 @@
+apiVersion: v2
+name: k8s-service-auth-dashboard
+description: A Helm chart for Kubernetes Service Authentication Dashboard - manage HTTPRoutes, SecurityPolicies, and Htpasswd Secrets
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - kubernetes
+  - gateway-api
+  - envoy-gateway
+  - httproute
+  - security-policy
+maintainers:
+  - name: mohaijiang
