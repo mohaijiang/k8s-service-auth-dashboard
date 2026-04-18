@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import ComponentCard from "@/components/common/ComponentCard";
 import ServiceTable from "@/components/tables/ServiceTable";
+import HTTPRouteManager from "@/components/HTTPRouteManager";
 import { listServices, listNamespaces } from "@/lib/api";
 import type { ServiceOverview } from "@/lib/api";
 
@@ -13,6 +14,8 @@ export default function ServicesPage() {
   const [selectedNamespace, setSelectedNamespace] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [routeManagerOpen, setRouteManagerOpen] = useState(false);
+  const [selectedService, setSelectedService] = useState<ServiceOverview | null>(null);
 
   const fetchServices = useCallback(async () => {
     try {
@@ -27,6 +30,11 @@ export default function ServicesPage() {
       setLoading(false);
     }
   }, [selectedNamespace]);
+
+  const handleManageRoutes = useCallback((service: ServiceOverview) => {
+    setSelectedService(service);
+    setRouteManagerOpen(true);
+  }, []);
 
   useEffect(() => {
     listNamespaces()
@@ -76,9 +84,21 @@ export default function ServicesPage() {
             </div>
           )}
 
-          <ServiceTable services={services} loading={loading} />
+          <ServiceTable
+            services={services}
+            loading={loading}
+            onManageRoutes={handleManageRoutes}
+          />
         </ComponentCard>
       </div>
+
+      {selectedService && (
+        <HTTPRouteManager
+          isOpen={routeManagerOpen}
+          onClose={() => setRouteManagerOpen(false)}
+          service={selectedService}
+        />
+      )}
     </div>
   );
 }

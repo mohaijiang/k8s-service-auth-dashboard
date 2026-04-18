@@ -61,6 +61,8 @@ func main() {
 	userHandler := handler.NewUserHandler(clientset, cfg.Namespace)
 	serviceHandler := handler.NewServiceHandler(clientset, dynClient)
 	htpasswdHandler := handler.NewHtpasswdHandler(clientset, dynClient)
+	gatewayHandler := handler.NewGatewayHandler(dynClient)
+	httpRouteHandler := handler.NewHTTPRouteHandler(dynClient)
 
 	public := router.Group("/api")
 	{
@@ -83,6 +85,12 @@ func main() {
 		protected.POST("/namespaces/:namespace/htpasswd/:name/users", htpasswdHandler.AddUser)
 		protected.DELETE("/namespaces/:namespace/htpasswd/:name/users/:username", htpasswdHandler.RemoveUser)
 		protected.DELETE("/namespaces/:namespace/htpasswd/:name", htpasswdHandler.DeleteHtpasswdSecret)
+
+		protected.GET("/gateways", gatewayHandler.ListGateways)
+
+		protected.GET("/services/:namespace/:service/httproutes", httpRouteHandler.ListByService)
+		protected.POST("/httproutes", httpRouteHandler.Create)
+		protected.DELETE("/httproutes/:namespace/:name", httpRouteHandler.Delete)
 	}
 
 	router.GET("/health", func(c *gin.Context) {

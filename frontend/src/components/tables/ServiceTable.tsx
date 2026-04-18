@@ -14,9 +14,10 @@ import type { ServiceOverview } from "@/lib/api";
 interface ServiceTableProps {
   services: ServiceOverview[];
   loading: boolean;
+  onManageRoutes?: (service: ServiceOverview) => void;
 }
 
-export default function ServiceTable({ services, loading }: ServiceTableProps) {
+export default function ServiceTable({ services, loading, onManageRoutes }: ServiceTableProps) {
   const headers = (
     <TableHeader>
       <TableRow className="border-b border-gray-100 dark:border-gray-800">
@@ -38,6 +39,9 @@ export default function ServiceTable({ services, loading }: ServiceTableProps) {
         <TableCell isHeader className="px-5 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
           SecurityPolicy
         </TableCell>
+        <TableCell isHeader className="px-5 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+          Actions
+        </TableCell>
       </TableRow>
     </TableHeader>
   );
@@ -50,13 +54,13 @@ export default function ServiceTable({ services, loading }: ServiceTableProps) {
           <TableBody>
             {loading ? (
               <tr>
-                <td className="px-5 py-12 text-center text-sm text-gray-500 dark:text-gray-400" colSpan={6}>
+                <td className="px-5 py-12 text-center text-sm text-gray-500 dark:text-gray-400" colSpan={7}>
                   Loading...
                 </td>
               </tr>
             ) : services.length === 0 ? (
               <tr>
-                <td className="px-5 py-12 text-center text-sm text-gray-500 dark:text-gray-400" colSpan={6}>
+                <td className="px-5 py-12 text-center text-sm text-gray-500 dark:text-gray-400" colSpan={7}>
                   No services found
                 </td>
               </tr>
@@ -116,6 +120,16 @@ export default function ServiceTable({ services, loading }: ServiceTableProps) {
                       <Badge variant="light" color="light" size="sm">
                         None
                       </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="px-5 py-4">
+                    {onManageRoutes && (
+                      <button
+                        onClick={() => onManageRoutes(svc)}
+                        className="text-sm text-brand-500 hover:text-brand-600 dark:text-brand-400 dark:hover:text-brand-300"
+                      >
+                        Manage Routes
+                      </button>
                     )}
                   </TableCell>
                 </TableRow>

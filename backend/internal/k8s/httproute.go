@@ -106,3 +106,89 @@ func parseHTTPRoute(obj *unstructured.Unstructured) HTTPRouteData {
 
 	return route
 }
+
+// HTTPRouteSpec defines the specification for creating an HTTPRoute.
+type HTTPRouteSpec struct {
+	Hostnames   []string
+	ServiceName string
+	ServicePort int32
+	ParentRefs  []ParentRefData
+}
+
+// CreateHTTPRoute creates a new HTTPRoute resource.
+func CreateHTTPRoute(ctx context.Context, dynClient dynamic.Interface, namespace, name string, spec HTTPRouteSpec) error {
+	// Build backend reference
+	backendRef := map[string]interface{}{
+		"name": spec.ServiceName,
+		"port": spec.ServicePort,
+	}
+
+	// Build parent references
+	parentRefs := make([]map[string]interface{}, 0, len(spec.ParentRefs))
+	for _, ref := range spec.ParentRefs {
+		parentRef := map[string]interface{}{
+			"name": ref.Name,
+		}
+		if ref.Namespace != "" {
+			parentRef["namespace"] = ref.Namespace
+		}
+		parentRefs = append(parentRefs, parentRef)
+	}
+
+	// Build the HTTPRoute object
+	httpRoute := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "gateway.networking.k8s.io/v1",
+			"kind":       "HTTPRoute",
+			"metadata": map[string]interface{}{
+				"name":      name,
+				"namespace": namespace,
+			},
+			"spec": map[string]interface{}{
+				"hostnames":  spec.Hostnames,
+				"parentRefs": parentRefs,
+				"rules": []map[string]interface{}{
+					{
+						"backendRefs": []map[string]interface{}{backendRef},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := dynClient.Resource(httpRouteGVR).Namespace(namespace).Create(ctx, httpRoute, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create httproute: %w", err)
+	}
+	return nil
+}
+
+// DeleteHTTPRoute deletes an HTTPRoute resource.
+func DeleteHTTPRoute(ctx context.Context, dynClient dynamic.Interface, namespace, name string) error {
+	err := dynClient.Resource(httpRouteGVR).Namespace(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to delete httproute: %w", err)
+	}
+	return nil
+}
+
+// GetHTTPRoutesByService lists HTTPRoutes that reference the given service in their backendRefs.
+func GetHTTPRoutesByService(ctx context.Context, dynClient dynamic.Interface, namespace, serviceName string) ([]HTTPRouteData, error) {
+	list, err := dynClient.Resource(httpRouteGVR).Namespace(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list httproutes: %w", err)
+	}
+
+	result := make([]HTTPRouteData, 0)
+	for i := range list.Items {
+		route := parseHTTPRoute(&list.Items[i])
+		// Check if any backendRef matches the service name
+		for _, ref := range route.BackendRefs {
+			if ref.Name == serviceName {
+				result = append(result, route)
+				break
+			}
+		}
+	}
+	return result, nil
+}

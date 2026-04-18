@@ -89,7 +89,7 @@ func CreateHtpasswdSecret(ctx context.Context, clientset *kubernetes.Clientset, 
 			},
 		},
 		Data: map[string][]byte{
-			"users": content,
+			".htpasswd": content,
 		},
 	}
 
@@ -115,7 +115,7 @@ func AddUserToHtpasswd(ctx context.Context, clientset *kubernetes.Clientset, nam
 
 		// Read existing htpasswd lines to preserve hashes
 		userMap := make(map[string]string)
-		lines := strings.Split(strings.TrimSpace(string(secret.Data["users"])), "\n")
+		lines := strings.Split(strings.TrimSpace(string(secret.Data[".htpasswd"])), "\n")
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
 			if line == "" {
@@ -128,7 +128,7 @@ func AddUserToHtpasswd(ctx context.Context, clientset *kubernetes.Clientset, nam
 		}
 
 		userMap[username] = fmt.Sprintf("{SHA}%s", sha1Base64(password))
-		secret.Data["users"] = generateHtpasswdContentFromMap(userMap)
+		secret.Data[".htpasswd"] = generateHtpasswdContentFromMap(userMap)
 
 		_, err = clientset.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
 		if err != nil {
@@ -155,7 +155,7 @@ func RemoveUserFromHtpasswd(ctx context.Context, clientset *kubernetes.Clientset
 			return fmt.Errorf("failed to get htpasswd secret: %w", err)
 		}
 
-		existingUsers := parseHtpasswdContent(secret.Data["users"])
+		existingUsers := parseHtpasswdContent(secret.Data[".htpasswd"])
 		found := false
 		for _, u := range existingUsers {
 			if u == username {
@@ -169,7 +169,7 @@ func RemoveUserFromHtpasswd(ctx context.Context, clientset *kubernetes.Clientset
 
 		// Build user map without the deleted user
 		userMap := make(map[string]string)
-		lines := strings.Split(strings.TrimSpace(string(secret.Data["users"])), "\n")
+		lines := strings.Split(strings.TrimSpace(string(secret.Data[".htpasswd"])), "\n")
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
 			if line == "" {
@@ -181,7 +181,7 @@ func RemoveUserFromHtpasswd(ctx context.Context, clientset *kubernetes.Clientset
 			}
 		}
 
-		secret.Data["users"] = generateHtpasswdContentFromMap(userMap)
+		secret.Data[".htpasswd"] = generateHtpasswdContentFromMap(userMap)
 
 		_, err = clientset.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
 		if err != nil {
@@ -276,7 +276,7 @@ func parseHtpasswdSecret(secret *corev1.Secret) HtpasswdSecretData {
 	data := HtpasswdSecretData{
 		Name:      secret.Name,
 		Namespace: secret.Namespace,
-		Users:     parseHtpasswdContent(secret.Data["users"]),
+		Users:     parseHtpasswdContent(secret.Data[".htpasswd"]),
 	}
 
 	createdAtStr := secret.Annotations["createdAt"]

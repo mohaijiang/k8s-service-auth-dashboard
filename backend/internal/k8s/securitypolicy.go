@@ -77,3 +77,57 @@ func parseSecurityPolicy(obj *unstructured.Unstructured) SecurityPolicyData {
 
 	return policy
 }
+
+// SecurityPolicySpec defines the specification for creating a SecurityPolicy.
+type SecurityPolicySpec struct {
+	TargetHTTPRouteName string
+	BasicAuthSecretName string
+}
+
+// CreateSecurityPolicy creates a new SecurityPolicy resource.
+func CreateSecurityPolicy(ctx context.Context, dynClient dynamic.Interface, namespace, name string, spec SecurityPolicySpec) error {
+	// Build target reference
+	targetRef := map[string]interface{}{
+		"group": "gateway.networking.k8s.io",
+		"kind":  "HTTPRoute",
+		"name":  spec.TargetHTTPRouteName,
+	}
+
+	// Build basicAuth configuration
+	basicAuth := map[string]interface{}{
+		"users": map[string]interface{}{
+			"name": spec.BasicAuthSecretName,
+		},
+	}
+
+	// Build the SecurityPolicy object
+	securityPolicy := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "gateway.envoyproxy.io/v1alpha1",
+			"kind":       "SecurityPolicy",
+			"metadata": map[string]interface{}{
+				"name":      name,
+				"namespace": namespace,
+			},
+			"spec": map[string]interface{}{
+				"targetRefs": []map[string]interface{}{targetRef},
+				"basicAuth":  basicAuth,
+			},
+		},
+	}
+
+	_, err := dynClient.Resource(securityPolicyGVR).Namespace(namespace).Create(ctx, securityPolicy, metav1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create securitypolicy: %w", err)
+	}
+	return nil
+}
+
+// DeleteSecurityPolicy deletes a SecurityPolicy resource.
+func DeleteSecurityPolicy(ctx context.Context, dynClient dynamic.Interface, namespace, name string) error {
+	err := dynClient.Resource(securityPolicyGVR).Namespace(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to delete securitypolicy: %w", err)
+	}
+	return nil
+}

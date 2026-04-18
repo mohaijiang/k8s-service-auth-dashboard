@@ -233,3 +233,78 @@ export function deleteHtpasswdSecret(namespace: string, name: string): Promise<H
     method: "DELETE",
   });
 }
+
+// httproute types
+
+export interface HTTPRouteDetail {
+  name: string;
+  namespace: string;
+  hostnames: string[];
+  parentRefs: ParentRef[];
+  serviceName: string;
+}
+
+export interface HTTPRouteCreateRequest {
+  name: string;
+  namespace: string;
+  hostnames: string[];
+  serviceName: string;
+  servicePort: number;
+  parentRefs: ParentRef[];
+  securityPolicy?: {
+    basicAuthSecretName: string;
+  };
+}
+
+export interface ListHTTPRoutesResponse {
+  success: boolean;
+  data: HTTPRouteDetail[];
+}
+
+export interface HTTPRouteResponse {
+  success: boolean;
+  data: HTTPRouteDetail;
+}
+
+export interface HTTPRouteMessageResponse {
+  success: boolean;
+  message: string;
+}
+
+// gateway types
+
+export interface GatewayData {
+  name: string;
+  namespace: string;
+}
+
+export interface ListGatewaysResponse {
+  success: boolean;
+  data: GatewayData[];
+}
+
+// httproute API functions
+
+export function listHTTPRoutesByService(namespace: string, serviceName: string): Promise<ListHTTPRoutesResponse> {
+  return apiClient<ListHTTPRoutesResponse>(`/api/services/${namespace}/${serviceName}/httproutes`);
+}
+
+export function createHTTPRoute(data: HTTPRouteCreateRequest): Promise<HTTPRouteResponse> {
+  return apiClient<HTTPRouteResponse>("/api/httproutes", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteHTTPRoute(namespace: string, name: string): Promise<HTTPRouteMessageResponse> {
+  return apiClient<HTTPRouteMessageResponse>(`/api/httproutes/${namespace}/${name}`, {
+    method: "DELETE",
+  });
+}
+
+// gateway API functions
+
+export function listGateways(namespace?: string): Promise<ListGatewaysResponse> {
+  const path = namespace ? `/api/gateways?namespace=${namespace}` : "/api/gateways";
+  return apiClient<ListGatewaysResponse>(path);
+}
