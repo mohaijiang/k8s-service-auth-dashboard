@@ -20,7 +20,8 @@ backend:
   # Environment variables
   env:
     # Namespace where dashboard resources are stored
-    namespace: dashboard-auth-system
+    # Defaults to the Helm release namespace if empty
+    namespace: ""
     # JWT expiry duration
     jwtExpiry: 24h
     # Environment (development, production)

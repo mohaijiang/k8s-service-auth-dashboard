@@ -34,7 +34,7 @@ spec:
         - name: ENV
           value: {{ .Values.backend.env.env | quote }}
         - name: NAMESPACE
-          value: {{ .Values.backend.env.namespace | quote }}
+          value: {{ .Values.backend.env.namespace | default .Release.Namespace | quote }}
         - name: JWT_EXPIRY
           value: {{ .Values.backend.env.jwtExpiry | quote }}
         {{- if .Values.backend.adminUser.create }}

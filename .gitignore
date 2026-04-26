@@ -41,3 +41,6 @@ next-env.d.ts
 backend/server
 backend/main
 backend/__debug_bin*
+
+# Helm chart packages
+charts/**/*.tgz
